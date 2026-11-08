@@ -58,6 +58,20 @@ public partial class MainWindow : Window
         if (error != null) MessageBox.Show(this, error, "Who can connect", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
+    private void RenameRemote_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not DeviceVm d) return;
+        var name = RenameDialog.Ask(this, d.Name, d.AutoName);
+        if (name != null) _controller.Rename(d.NameKey, name, n => d.Name = n, d.AutoName);
+    }
+
+    private void RenameLocal_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not LocalDeviceVm d) return;
+        var name = RenameDialog.Ask(this, d.Name, d.AutoName);
+        if (name != null) _controller.Rename(d.NameKey, name, n => d.Name = n, d.AutoName);
+    }
+
     public void SelectShareTab() => Tabs.SelectedItem = ShareTab;
 
     private void RemoveServer_Click(object sender, RoutedEventArgs e)

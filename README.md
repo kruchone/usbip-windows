@@ -37,6 +37,18 @@ Running a newer `UsbIp.exe` replaces the installed one. Uninstall from Installed
 - **Tray:** a menu for attaching and detaching, notifications when devices attach or disconnect, and **Start with Windows**.
 - **No admin rights:** the driver lets any user attach devices, so the app never asks for elevation.
 
+## Device names
+
+USB drivers mostly call themselves "USB Input Device", so names are built from better sources, in this order:
+1. Your own label: right-click any device → **Rename…**. Labels are remembered per device (local devices by Windows
+   instance ID, remote ones by server + bus ID + VID:PID).
+2. The device's own product string (Windows' bus-reported description), or the name usbip-android sends.
+3. The [USB ID database](http://www.linux-usb.org/usb.ids), bundled as `usb.ids.gz` (GPL-2.0-or-later / BSD-3-Clause):
+   it supplies vendor and product names by VID:PID.
+
+Each device also shows its vendor and what it contains (Keyboard, Mouse, Audio, Storage, Serial port, Camera, …).
+For local devices that comes from the Windows drivers bound to it; for remote devices, from their USB interface classes.
+
 ## Build
 
 Requires the .NET 10 SDK. It runs on Windows 10 (2004) or later.

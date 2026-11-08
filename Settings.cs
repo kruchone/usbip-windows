@@ -16,6 +16,9 @@ public sealed class Settings
 
     public bool TrayHintShown { get; set; }
 
+    /** User-chosen device labels, keyed by DeviceVm.NameKey / LocalDeviceVm.NameKey. */
+    public Dictionary<string, string> DeviceNames { get; set; } = new();
+
     /** Who may connect to shared devices: "LocalSubnet", "*", or a list like "10.0.20.0/24,100.64.0.0/10". */
     public string ShareAccess { get; set; } = "LocalSubnet";
 

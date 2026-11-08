@@ -12,7 +12,11 @@ namespace UsbIpClient;
 /** A USB device plugged into this PC, as reported by `usbipd state`. */
 public sealed record LocalUsbDevice(
     string BusId, string Description, string InstanceId, ushort VendorId, ushort ProductId,
-    bool Shared, string? ClientAddress);
+    bool Shared, string? ClientAddress)
+{
+    public string? ProductName { get; init; }
+    public IReadOnlyList<string> Kinds { get; init; } = Array.Empty<string>();
+}
 
 /** Wraps usbipd-win (the server side). Sharing changes need elevation; reading state doesn't. */
 public static class UsbIpd
@@ -49,7 +53,11 @@ public static class UsbIpd
                 m.Success ? Convert.ToUInt16(m.Groups[1].Value, 16) : (ushort)0,
                 m.Success ? Convert.ToUInt16(m.Groups[2].Value, 16) : (ushort)0,
                 d.GetProperty("PersistedGuid").ValueKind == JsonValueKind.String,
-                d.GetProperty("ClientIPAddress").GetString()));
+                d.GetProperty("ClientIPAddress").GetString())
+            {
+                ProductName = Devices.BusReportedName(instance),
+                Kinds = Devices.FunctionKinds(instance),
+            });
         }
         return list;
     }
@@ -89,6 +97,106 @@ public static class Devices
 
     [DllImport("cfgmgr32.dll", CharSet = CharSet.Unicode)]
     private static extern int CM_Get_DevNode_Registry_PropertyW(uint devInst, uint property, out uint regType, char[]? buffer, ref uint length, uint flags);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DEVPROPKEY
+    {
+        public Guid fmtid;
+        public uint pid;
+    }
+
+    [DllImport("cfgmgr32.dll", CharSet = CharSet.Unicode)]
+    private static extern int CM_Get_DevNode_PropertyW(uint devInst, ref DEVPROPKEY key, out uint type, byte[]? buffer, ref uint size, uint flags);
+
+    [DllImport("cfgmgr32.dll")]
+    private static extern int CM_Get_Child(out uint child, uint devInst, uint flags);
+
+    [DllImport("cfgmgr32.dll")]
+    private static extern int CM_Get_Sibling(out uint sibling, uint devInst, uint flags);
+
+    private const uint CM_DRP_CLASS = 0x08;
+
+    /** DEVPKEY_Device_BusReportedDeviceDesc: the product string the device reports over USB. */
+    private static DEVPROPKEY BusReportedDeviceDesc = new()
+    {
+        fmtid = new Guid("540b947e-8b40-45bc-a8a2-6a0b894cbda2"), pid = 4,
+    };
+
+    /** The device's own product name (USB iProduct string), e.g. "USB Receiver", "QEMU USB Tablet". */
+    public static string? BusReportedName(string instanceId)
+    {
+        try
+        {
+            if (CM_Locate_DevNodeW(out var node, instanceId, 0) != 0) return null;
+            uint size = 0;
+            CM_Get_DevNode_PropertyW(node, ref BusReportedDeviceDesc, out _, null, ref size, 0);
+            if (size == 0) return null;
+            var buf = new byte[size];
+            if (CM_Get_DevNode_PropertyW(node, ref BusReportedDeviceDesc, out _, buf, ref size, 0) != 0) return null;
+            var s = System.Text.Encoding.Unicode.GetString(buf).TrimEnd('\0').Trim();
+            return s.Length > 0 ? s : null;
+        }
+        catch (DllNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    /** What the device does, from the setup classes of the drivers bound below it: "Keyboard, Mouse". */
+    public static IReadOnlyList<string> FunctionKinds(string instanceId)
+    {
+        var kinds = new List<string>();
+        try
+        {
+            if (CM_Locate_DevNodeW(out var node, instanceId, 0) != 0) return kinds;
+            var classes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            void Walk(uint n, int depth)
+            {
+                if (depth > 6) return;
+                if (CM_Get_Child(out var c, n, 0) != 0) return;
+                do
+                {
+                    var cls = ClassOf(c);
+                    if (cls != null) classes.Add(cls);
+                    Walk(c, depth + 1);
+                } while (CM_Get_Sibling(out c, c, 0) == 0);
+            }
+            var own = ClassOf(node);
+            if (own != null) classes.Add(own);
+            Walk(node, 0);
+
+            void Add(string cls, string label) { if (classes.Contains(cls) && !kinds.Contains(label)) kinds.Add(label); }
+            Add("Keyboard", "Keyboard");
+            Add("Mouse", "Mouse");
+            Add("AudioEndpoint", "Audio");
+            Add("MEDIA", "Audio");
+            Add("Camera", "Camera");
+            Add("Image", "Camera");
+            Add("DiskDrive", "Storage");
+            Add("Ports", "Serial port");
+            Add("Modem", "Modem");
+            Add("Net", "Network adapter");
+            Add("Bluetooth", "Bluetooth");
+            Add("Printer", "Printer");
+            Add("SmartCardReader", "Smart card reader");
+            Add("Biometric", "Fingerprint reader");
+            if (kinds.Count == 0 && classes.Contains("HIDClass")) kinds.Add("HID device");
+        }
+        catch (DllNotFoundException)
+        {
+        }
+        return kinds;
+    }
+
+    private static string? ClassOf(uint node)
+    {
+        uint len = 0;
+        CM_Get_DevNode_Registry_PropertyW(node, CM_DRP_CLASS, out _, null, ref len, 0);
+        if (len == 0) return null;
+        var buf = new char[len / 2 + 1];
+        if (CM_Get_DevNode_Registry_PropertyW(node, CM_DRP_CLASS, out _, buf, ref len, 0) != 0) return null;
+        return new string(buf).TrimEnd('\0');
+    }
 
     /** True if the device or any ancestor in the PnP tree is driven by the given service. */
     public static bool IsBehindService(string instanceId, string service)

@@ -240,8 +240,11 @@ public sealed class AppController : Observable
                     vm = new LocalDeviceVm { BusId = d.BusId };
                     LocalDevices.Add(vm);
                 }
-                vm.Name = d.Description;
-                vm.Detail = $"{d.VendorId:x4}:{d.ProductId:x4} · bus {d.BusId}";
+                vm.NameKey = $"local|{d.InstanceId}";
+                vm.AutoName = DeviceNames.Best(d.VendorId, d.ProductId, null, d.ProductName, d.Description.Split(',')[0]);
+                Settings.DeviceNames.TryGetValue(vm.NameKey, out var custom);
+                vm.Name = custom ?? vm.AutoName;
+                vm.Detail = DeviceNames.Detail(d.VendorId, d.ProductId, d.Kinds, $"bus {d.BusId}");
                 if (vm.Busy) continue;
                 vm.Shared = d.Shared;
                 vm.Attached = d.ClientAddress != null;
@@ -267,6 +270,15 @@ public sealed class AppController : Observable
         {
             _sharingRefreshing = false;
         }
+    }
+
+    /** Sets (or with null/blank, clears) a custom label for a device. */
+    public void Rename(string nameKey, string? name, Action<string> apply, string autoName)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim() == autoName) Settings.DeviceNames.Remove(nameKey);
+        else Settings.DeviceNames[nameKey] = name.Trim();
+        Settings.Save();
+        apply(Settings.DeviceNames.TryGetValue(nameKey, out var n) ? n : autoName);
     }
 
     public async Task ToggleShareAsync(LocalDeviceVm d)
@@ -465,8 +477,12 @@ public sealed class AppController : Observable
 
             RemoteDeviceInfo? di = null;
             info?.Devices.TryGetValue(r.BusId, out di);
-            vm.Name = di?.Name is { Length: > 0 } n && n != $"{r.VendorId:x4}:{r.ProductId:x4}" ? n : UsbIpWire.ClassName(r);
-            vm.Detail = $"{r.VendorId:x4}:{r.ProductId:x4} · bus {r.BusId} · {UsbIpWire.SpeedName(r.Speed)}";
+            var infoName = di?.Name is { Length: > 0 } n && n != $"{r.VendorId:x4}:{r.ProductId:x4}" ? n : null;
+            vm.NameKey = $"remote|{s.Key}|{r.BusId}|{r.VendorId:x4}:{r.ProductId:x4}";
+            vm.AutoName = DeviceNames.Best(r.VendorId, r.ProductId, null, infoName, UsbIpWire.ClassName(r));
+            Settings.DeviceNames.TryGetValue(vm.NameKey, out var custom);
+            vm.Name = custom ?? vm.AutoName;
+            vm.Detail = DeviceNames.Detail(r.VendorId, r.ProductId, DeviceNames.KindsFromInterfaces(r), $"bus {r.BusId}");
 
             if (vm.State == DeviceState.Working) continue; // an attach/detach is in progress
 

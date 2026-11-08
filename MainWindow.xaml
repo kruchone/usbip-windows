@@ -115,14 +115,19 @@
                                                 <ItemsControl ItemsSource="{Binding Devices}" Margin="20,6,0,0">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate DataType="{x:Type local:DeviceVm}">
-                                                            <Grid Margin="0,8,0,0">
+                                                            <Grid Margin="0,8,0,0" Background="Transparent">
+                                                                <Grid.ContextMenu>
+                                                                    <ContextMenu>
+                                                                        <MenuItem Header="Rename…" Click="RenameRemote_Click" />
+                                                                    </ContextMenu>
+                                                                </Grid.ContextMenu>
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="*" />
                                                                     <ColumnDefinition Width="Auto" />
                                                                     <ColumnDefinition Width="Auto" />
                                                                 </Grid.ColumnDefinitions>
                                                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="Right-click to rename" />
                                                                     <TextBlock Text="{Binding Detail}" Style="{StaticResource Secondary}" FontSize="12" />
                                                                     <TextBlock x:Name="State" Text="{Binding StatusText}" FontSize="12" Margin="0,2,0,0"
                                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -187,18 +192,15 @@
                     <TextBlock Grid.Row="0" Text="{Binding ShareStatus}" Style="{StaticResource Secondary}" Margin="0,0,0,10" />
 
                     <!-- Who can connect (firewall) -->
-                    <Border Grid.Row="1" Style="{StaticResource Card}"
-                            Visibility="{Binding ServerInstalled, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-                            <DockPanel>
-                                <Button DockPanel.Dock="Right" Content="Apply" MinWidth="88" Click="ApplyAccess_Click"
-                                        VerticalAlignment="Top" Style="{DynamicResource AccentButtonStyle}"
-                                        IsEnabled="{Binding AccessBusy, Converter={x:Static local:Converters.Not}}" />
-                                <StackPanel>
-                                    <TextBlock Text="Who can connect" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding AccessCurrent}" Style="{StaticResource Secondary}" FontSize="12" />
-                                </StackPanel>
-                            </DockPanel>
+                    <Expander Grid.Row="1" Margin="0,0,0,12" IsExpanded="{Binding AccessMismatch, Mode=OneWay}"
+                              Visibility="{Binding ServerInstalled, Converter={StaticResource BoolToVis}}">
+                        <Expander.Header>
+                            <StackPanel>
+                                <TextBlock Text="Who can connect" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding AccessCurrent}" Style="{StaticResource Secondary}" FontSize="12" />
+                            </StackPanel>
+                        </Expander.Header>
+                        <StackPanel Margin="4,4,4,8">
                             <TextBlock Text="The firewall rule no longer matches your choice (an update may have reset it). Apply it again."
                                        Foreground="{DynamicResource SystemFillColorCautionBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"
                                        Visibility="{Binding AccessMismatch, Converter={StaticResource BoolToVis}}" />
@@ -215,8 +217,11 @@
                                          Content="Anyone who can reach this PC" />
                             <TextBlock Margin="0,6,0,0" FontSize="12" Style="{StaticResource Secondary}"
                                        Text="USB/IP has no password or encryption: allow only networks you trust." />
+                            <Button Content="Apply" MinWidth="88" Click="ApplyAccess_Click" HorizontalAlignment="Right" Margin="0,8,0,0"
+                                    Style="{DynamicResource AccentButtonStyle}"
+                                    IsEnabled="{Binding AccessBusy, Converter={x:Static local:Converters.Not}}" />
                         </StackPanel>
-                    </Border>
+                    </Expander>
 
                     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="-4,0,-4,0" Padding="4,0,4,0">
                         <StackPanel>
@@ -230,13 +235,18 @@
                                 <ItemsControl ItemsSource="{Binding LocalDevices}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="{x:Type local:LocalDeviceVm}">
-                                            <Grid Margin="0,6,0,6">
+                                            <Grid Margin="0,6,0,6" Background="Transparent">
+                                                <Grid.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="Rename…" Click="RenameLocal_Click" />
+                                                    </ContextMenu>
+                                                </Grid.ContextMenu>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="Right-click to rename" />
                                                     <TextBlock Text="{Binding Detail}" Style="{StaticResource Secondary}" FontSize="12" />
                                                     <TextBlock x:Name="State" Text="{Binding StatusText}" FontSize="12" Margin="0,2,0,0"
                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />

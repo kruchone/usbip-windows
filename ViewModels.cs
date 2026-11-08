@@ -114,6 +114,12 @@ public sealed class DeviceVm : Observable
     public required string BusId { get; init; }
     public string Key => $"{Server.Key}|{BusId}";
 
+    /** Identity for a custom name: server, bus id and VID:PID (bus ids from usbip-android are stable per device). */
+    public string NameKey { get; set; } = "";
+
+    /** The name we'd show without a custom label (for the rename dialog's placeholder). */
+    public string AutoName { get; set; } = "";
+
     public string Name { get => _name; set => Set(ref _name, value); }
     public string Detail { get => _detail; set => Set(ref _detail, value); }
 
@@ -177,6 +183,10 @@ public sealed class LocalDeviceVm : Observable
     public string Name { get => _name; set => Set(ref _name, value); }
     public string Detail { get => _detail; set => Set(ref _detail, value); }
     public string StatusText { get => _statusText; set => Set(ref _statusText, value); }
+
+    /** Windows device instance id: stable per device (serial number) or per port. */
+    public string NameKey { get; set; } = "";
+    public string AutoName { get; set; } = "";
 
     public bool Shared
     {

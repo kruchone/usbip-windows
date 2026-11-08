@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <Resource Include="app.ico" />
+    <EmbeddedResource Include="usb.ids.gz" LogicalName="UsbIpClient.usb.ids.gz" />
   </ItemGroup>
 
 </Project>
