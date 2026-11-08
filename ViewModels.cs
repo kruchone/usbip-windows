@@ -162,3 +162,37 @@ public sealed class DeviceVm : Observable
     /** Set when we attached it, so an unexpected disappearance can be reported. */
     public bool WasAttached { get; set; }
 }
+
+/** A USB device plugged into this PC, for the Share tab. */
+public sealed class LocalDeviceVm : Observable
+{
+    private string _name = "";
+    private string _detail = "";
+    private string _statusText = "";
+    private bool _shared;
+    private bool _attached;
+    private bool _busy;
+
+    public required string BusId { get; init; }
+    public string Name { get => _name; set => Set(ref _name, value); }
+    public string Detail { get => _detail; set => Set(ref _detail, value); }
+    public string StatusText { get => _statusText; set => Set(ref _statusText, value); }
+
+    public bool Shared
+    {
+        get => _shared;
+        set { if (Set(ref _shared, value)) OnChanged(nameof(ActionText)); }
+    }
+
+    /** A remote computer is currently using it. */
+    public bool Attached { get => _attached; set => Set(ref _attached, value); }
+
+    public bool Busy
+    {
+        get => _busy;
+        set { if (Set(ref _busy, value)) OnChanged(nameof(CanAct)); }
+    }
+
+    public string ActionText => Shared ? "Stop sharing" : "Share";
+    public bool CanAct => !Busy;
+}

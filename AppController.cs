@@ -24,7 +24,13 @@ public sealed class AppController : Observable
     private DateTime _lastDiscoveryRestart = DateTime.Now;
     private bool _refreshing;
     private string _statusText = "";
-    private bool _driverInstalled = UsbIpCli.IsInstalled;
+    private bool _clientInstalled = Prerequisites.Client.IsInstalled;
+    private bool _serverInstalled = Prerequisites.Server.IsInstalled;
+    private bool _setupBusy;
+    private string _setupText = "";
+    private string _shareStatus = "";
+    private bool _sharingRefreshing;
+    private readonly MdnsAdvertiser _advertiser = new();
 
     public Settings Settings { get; } = Settings.Load();
     public ObservableCollection<ServerVm> Servers { get; } = new();
@@ -34,11 +40,47 @@ public sealed class AppController : Observable
 
     public string StatusText { get => _statusText; private set => Set(ref _statusText, value); }
 
-    public bool DriverInstalled { get => _driverInstalled; private set => Set(ref _driverInstalled, value); }
+    /** usbip-win2 (attach remote devices) is installed. */
+    public bool DriverInstalled
+    {
+        get => _clientInstalled;
+        private set { if (Set(ref _clientInstalled, value)) SetupChanged(); }
+    }
+
+    /** usbipd-win (share local devices) is installed. */
+    public bool ServerInstalled
+    {
+        get => _serverInstalled;
+        private set { if (Set(ref _serverInstalled, value)) SetupChanged(); }
+    }
+
+    public bool SetupNeeded => !DriverInstalled || !ServerInstalled;
+    public bool SetupBusy { get => _setupBusy; private set { if (Set(ref _setupBusy, value)) OnChanged(nameof(CanInstall)); } }
+    public bool CanInstall => SetupNeeded && !SetupBusy;
+    public string SetupText { get => _setupText; private set => Set(ref _setupText, value); }
+
+    public string ClientComponentText => (DriverInstalled ? "✓ " : "• ") + $"{Prerequisites.Client.Name}: {Prerequisites.Client.Purpose}" + (DriverInstalled ? " (installed)" : "");
+    public string ServerComponentText => (ServerInstalled ? "✓ " : "• ") + $"{Prerequisites.Server.Name}: {Prerequisites.Server.Purpose}" + (ServerInstalled ? " (installed)" : "");
+
+    private void SetupChanged()
+    {
+        OnChanged(nameof(SetupNeeded));
+        OnChanged(nameof(CanInstall));
+        OnChanged(nameof(ClientComponentText));
+        OnChanged(nameof(ServerComponentText));
+        OnChanged(nameof(DriverVersion));
+    }
+
+    public ObservableCollection<LocalDeviceVm> LocalDevices { get; } = new();
+    public string ShareStatus { get => _shareStatus; private set => Set(ref _shareStatus, value); }
 
     public bool HasServers => Servers.Count > 0;
 
-    public string DriverVersion => UsbIpCli.Version is { } v ? $"usbip-win2 {v}" : "usbip-win2 not installed";
+    public string DriverVersion => string.Join("  ·  ", new[]
+    {
+        UsbIpCli.Version is { } v ? $"usbip-win2 {v.Split('+')[0]}" : "usbip-win2 missing",
+        ServerInstalled ? "usbipd-win" : "usbipd-win missing",
+    });
 
     public AppController(Dispatcher ui)
     {
@@ -68,12 +110,108 @@ public sealed class AppController : Observable
     {
         _timer.Stop();
         _discovery.Dispose();
+        _advertiser.Dispose();
+    }
+
+    // ------------------------------------------------------------------ setup
+
+    public async Task InstallPrerequisitesAsync()
+    {
+        if (SetupBusy) return;
+        SetupBusy = true;
+        try
+        {
+            var progress = new Progress<string>(m => SetupText = m);
+            var error = await Prerequisites.InstallAsync(Prerequisites.All, progress);
+            DriverInstalled = Prerequisites.Client.IsInstalled;
+            ServerInstalled = Prerequisites.Server.IsInstalled;
+            SetupText = error ?? "All set.";
+            if (error == null) Notify?.Invoke("USB/IP is ready", "Drivers installed. You can attach and share USB devices.");
+        }
+        finally
+        {
+            SetupBusy = false;
+        }
+        await RefreshAsync();
+    }
+
+    // ------------------------------------------------------------------ sharing (server mode)
+
+    private async Task RefreshSharingAsync()
+    {
+        if (!ServerInstalled || _sharingRefreshing) return;
+        _sharingRefreshing = true;
+        try
+        {
+            List<LocalUsbDevice> devices;
+            try
+            {
+                devices = await UsbIpd.StateAsync();
+            }
+            catch (Exception e)
+            {
+                ShareStatus = $"Couldn't read this PC's USB devices: {e.Message}";
+                return;
+            }
+
+            foreach (var gone in LocalDevices.Where(v => devices.All(d => d.BusId != v.BusId)).ToList()) LocalDevices.Remove(gone);
+            foreach (var d in devices)
+            {
+                var vm = LocalDevices.FirstOrDefault(v => v.BusId == d.BusId);
+                if (vm == null)
+                {
+                    vm = new LocalDeviceVm { BusId = d.BusId };
+                    LocalDevices.Add(vm);
+                }
+                vm.Name = d.Description;
+                vm.Detail = $"{d.VendorId:x4}:{d.ProductId:x4} · bus {d.BusId}";
+                if (vm.Busy) continue;
+                vm.Shared = d.Shared;
+                vm.Attached = d.ClientAddress != null;
+                vm.StatusText = d.ClientAddress != null ? $"In use by {d.ClientAddress}" : d.Shared ? "Shared" : "Not shared";
+            }
+
+            var anyShared = devices.Any(d => d.Shared);
+            if (anyShared && !_advertiser.IsAdvertising)
+            {
+                try { _advertiser.Start(); } catch { /* DNS-SD API unavailable; manual add still works */ }
+            }
+            else if (!anyShared && _advertiser.IsAdvertising)
+            {
+                _advertiser.Stop();
+            }
+
+            var addrs = LocalAddresses().Where(a => !a.Contains(':') && a != "127.0.0.1").ToList();
+            ShareStatus = anyShared
+                ? $"Other computers can attach shared devices from {Environment.MachineName} ({string.Join(", ", addrs)})."
+                : "Share a device to let other computers attach it. It keeps working here until someone attaches it.";
+        }
+        finally
+        {
+            _sharingRefreshing = false;
+        }
+    }
+
+    public async Task ToggleShareAsync(LocalDeviceVm d)
+    {
+        if (d.Busy) return;
+        var share = !d.Shared;
+        d.Busy = true;
+        d.StatusText = share ? "Sharing… approve the Windows prompt" : "Stopping… approve the Windows prompt";
+        var error = await UsbIpd.SetSharedAsync(d.BusId, share);
+        d.Busy = false;
+        if (error != null) StatusText = $"{d.Name}: {error}";
+        await RefreshSharingAsync();
     }
 
     // ------------------------------------------------------------------ servers
 
     private void OnDiscovered(DiscoveredServer d)
     {
+        // Our own advertisement (when sharing) shouldn't show up as a remote server.
+        var local = LocalAddresses();
+        if (d.Addresses.Count > 0 && d.Addresses.All(local.Contains)) return;
+
         var host = d.Addresses.FirstOrDefault() ?? d.HostName;
         // Already listed by address (manual) or under its name: just refresh the details.
         var existing = Servers.FirstOrDefault(s => s.DiscoveryId == d.Id || (!s.IsManual && s.Key == d.Name))
@@ -160,7 +298,9 @@ public sealed class AppController : Observable
         _refreshing = true;
         try
         {
-            DriverInstalled = UsbIpCli.IsInstalled;
+            DriverInstalled = Prerequisites.Client.IsInstalled;
+            ServerInstalled = Prerequisites.Server.IsInstalled;
+            _ = RefreshSharingAsync();
             if (DateTime.Now - _lastDiscoveryRestart > DiscoveryRestart)
             {
                 _lastDiscoveryRestart = DateTime.Now;

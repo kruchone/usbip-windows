@@ -17,7 +17,7 @@ public sealed class Settings
     public bool TrayHintShown { get; set; }
 
     private static string FilePath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "UsbIpClient", "settings.json");
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "UsbIp", "settings.json");
 
     public static Settings Load()
     {
@@ -50,7 +50,7 @@ public sealed class Settings
 public static class Startup
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "UsbIpClient";
+    private const string ValueName = "UsbIp";
 
     public static bool Enabled
     {

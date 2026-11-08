@@ -1,16 +1,31 @@
 # USB/IP for Windows
 
-A tray app that attaches USB devices shared over the network as if they were plugged into this PC.
+A tray app with two modes. **Use remote devices:** attach USB devices shared over the network as if they were
+plugged into this PC. **Share this PC:** let other computers attach this PC's USB devices.
 It pairs with [usbip-android](https://github.com/kruchone/usbip-android), and also works with any standard USB/IP server, such as Linux `usbipd`.
 
-The app runs on top of the signed open-source **usbip-win2** driver, which provides the virtual USB host controller.
-Install the driver once:
+## Install
 
-```
-winget install vadimgrn.usbip-win2
-```
+Download `UsbIp.exe` and run it. It's self-contained, so no .NET install is needed. On first run it:
+
+1. installs itself per-user to `%LOCALAPPDATA%\Programs\UsbIp`, with a Start menu shortcut and an "Installed apps" entry;
+2. offers to install the two signed open-source drivers it builds on, with **one** UAC prompt:
+   - [usbip-win2](https://github.com/vadimgrn/usbip-win2) 0.9.7.8: the virtual USB host controller, for attaching remote devices;
+   - [usbipd-win](https://github.com/dorssel/usbipd-win) 5.3.0: the server, for sharing local devices.
+
+   Installers are downloaded from their GitHub releases (x64 or ARM64) and checked against pinned SHA-256 hashes,
+   the same ones winget uses. The elevated helper re-verifies them before running anything.
+
+Running a newer `UsbIp.exe` replaces the installed one. Uninstall from Installed apps; the drivers have their own entries.
 
 ## Features
+
+**Share this PC**
+- Lists this PC's USB devices, with Share / Stop sharing (bind/unbind; one UAC prompt each) and who's using each one.
+- While anything is shared, it advertises the PC as `_usbip._tcp` over mDNS, so other USB/IP apps find it automatically.
+- Devices this PC has imported from elsewhere are never offered for sharing.
+
+**Use remote devices**
 
 - **Finding servers:** finds servers automatically over mDNS (`_usbip._tcp`), or you add one by address (e.g. over Tailscale).
 - **Device list:** shows each device's name, VID:PID and bus speed, and whether it's free or in use by another PC.
@@ -21,16 +36,18 @@ winget install vadimgrn.usbip-win2
 
 ## Build
 
-Requires the .NET 10 SDK on Windows 10 (2004) or later.
+Requires the .NET 10 SDK. It runs on Windows 10 (2004) or later.
 
 ```
-dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o %LOCALAPPDATA%\Programs\UsbIpClient
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=embedded -o dist
 ```
+
+Use `-r win-arm64` for ARM. Options: `--tray` starts minimized, `--portable` skips self-install, and `--uninstall` removes the app.
 
 ## Notes
 
-- Attach and detach go through `C:\Program Files\USBip\usbip.exe`. Device lists are fetched directly over the
+- Attach and detach go through `usbip.exe` (usbip-win2); sharing goes through `usbipd.exe` (usbipd-win). Device lists are fetched directly over the
   USB/IP protocol (`UsbIpWire.cs`).
 - The app speaks one protocol extension: op `0x8F01` gets `0x0F01` + u32 length + JSON
   `{"name", "devices":[{"busid","name","attachedBy"}]}`. Servers that don't support it are re-checked only every 10 minutes.
-- `UsbIpClient.exe --snapshot out.png` renders the window to an image and exits. It's useful for checking the UI over remote sessions.
+- `UsbIp.exe --snapshot out.png [share]` renders the window to an image and exits. It's useful for checking the UI over remote sessions.

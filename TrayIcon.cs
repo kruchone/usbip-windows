@@ -21,7 +21,7 @@ public sealed class TrayIcon : IDisposable
         _icon = new WinForms.NotifyIcon
         {
             Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!) ?? SystemIcons.Application,
-            Text = "USB/IP Client",
+            Text = "USB/IP",
             Visible = true,
             ContextMenuStrip = new WinForms.ContextMenuStrip(),
         };
@@ -78,7 +78,7 @@ public sealed class TrayIcon : IDisposable
         };
         detachAll.Click += async (_, _) => await _controller.DetachAllAsync();
         menu.Items.Add(detachAll);
-        var open = new WinForms.ToolStripMenuItem("Open USB/IP Client") { Font = new Font(menu.Font, FontStyle.Bold) };
+        var open = new WinForms.ToolStripMenuItem("Open USB/IP") { Font = new Font(menu.Font, FontStyle.Bold) };
         open.Click += (_, _) => _show();
         menu.Items.Add(open);
         var exit = new WinForms.ToolStripMenuItem("Exit");

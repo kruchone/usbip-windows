@@ -8,10 +8,10 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>UsbIpClient</AssemblyName>
+    <AssemblyName>UsbIp</AssemblyName>
     <RootNamespace>UsbIpClient</RootNamespace>
-    <Product>USB/IP Client</Product>
-    <Version>0.1.0</Version>
+    <Product>USB/IP</Product>
+    <Version>0.2.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <!-- WPF Fluent theme (ThemeMode) is flagged experimental. -->

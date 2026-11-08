@@ -34,8 +34,7 @@ public sealed record ImportedDevice(int Port, string Host, int TcpPort, string B
 /** Wraps the usbip-win2 command-line tool. */
 public static class UsbIpCli
 {
-    public static string ExePath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "USBip", "usbip.exe");
+    public static string ExePath => Prerequisites.Client.ExePath;
 
     public static bool IsInstalled => File.Exists(ExePath);
 

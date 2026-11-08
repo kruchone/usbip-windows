@@ -45,6 +45,15 @@ public partial class MainWindow : Window
         if ((sender as FrameworkElement)?.DataContext is DeviceVm d) await _controller.ToggleAsync(d);
     }
 
+    private async void ToggleShare_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is LocalDeviceVm d) await _controller.ToggleShareAsync(d);
+    }
+
+    private async void Install_Click(object sender, RoutedEventArgs e) => await _controller.InstallPrerequisitesAsync();
+
+    public void SelectShareTab() => Tabs.SelectedItem = ShareTab;
+
     private void RemoveServer_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is ServerVm s) _controller.RemoveServer(s);
@@ -98,14 +107,21 @@ public partial class MainWindow : Window
         using var f = System.IO.File.Create(path);
         enc.Save(f);
     }
-
-    private void GetDriver_Click(object sender, RoutedEventArgs e) =>
-        Process.Start(new ProcessStartInfo("https://github.com/vadimgrn/usbip-win2/releases/latest") { UseShellExecute = true });
 }
 
 public static class Converters
 {
     public static readonly IValueConverter InverseBoolToVisibility = new InverseBoolToVisibilityConverter();
+    public static readonly IValueConverter NonEmptyToVisibility = new NonEmptyToVisibilityConverter();
+
+    private sealed class NonEmptyToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+            value is string { Length: > 0 } ? Visibility.Visible : Visibility.Collapsed;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+            throw new NotSupportedException();
+    }
 
     private sealed class InverseBoolToVisibilityConverter : IValueConverter
     {
