@@ -16,6 +16,12 @@ public sealed class Settings
 
     public bool TrayHintShown { get; set; }
 
+    /** Who may connect to shared devices: "LocalSubnet", "*", or a list like "10.0.20.0/24,100.64.0.0/10". */
+    public string ShareAccess { get; set; } = "LocalSubnet";
+
+    /** Last custom list typed by the user (kept when switching modes). */
+    public string ShareAccessCustom { get; set; } = "";
+
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "UsbIp", "settings.json");
 

@@ -52,6 +52,12 @@ public partial class MainWindow : Window
 
     private async void Install_Click(object sender, RoutedEventArgs e) => await _controller.InstallPrerequisitesAsync();
 
+    private async void ApplyAccess_Click(object sender, RoutedEventArgs e)
+    {
+        var error = await _controller.ApplyAccessAsync();
+        if (error != null) MessageBox.Show(this, error, "Who can connect", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
     public void SelectShareTab() => Tabs.SelectedItem = ShareTab;
 
     private void RemoveServer_Click(object sender, RoutedEventArgs e)
@@ -113,6 +119,13 @@ public static class Converters
 {
     public static readonly IValueConverter InverseBoolToVisibility = new InverseBoolToVisibilityConverter();
     public static readonly IValueConverter NonEmptyToVisibility = new NonEmptyToVisibilityConverter();
+    public static readonly IValueConverter Not = new NotConverter();
+
+    private sealed class NotConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is not true;
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is not true;
+    }
 
     private sealed class NonEmptyToVisibilityConverter : IValueConverter
     {

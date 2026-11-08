@@ -72,6 +72,81 @@ public sealed class AppController : Observable
     }
 
     public ObservableCollection<LocalDeviceVm> LocalDevices { get; } = new();
+
+    // ---- server access (firewall)
+    public enum AccessMode { LocalNetwork, Custom, Anyone }
+
+    private AccessMode _accessMode;
+    private string _accessCustom = "";
+    private string _accessCurrent = "";
+    private bool _accessMismatch;
+    private bool _accessBusy;
+
+    public AccessMode Access
+    {
+        get => _accessMode;
+        set
+        {
+            if (!Set(ref _accessMode, value)) return;
+            OnChanged(nameof(AccessLocal)); OnChanged(nameof(AccessCustomMode)); OnChanged(nameof(AccessAnyone));
+        }
+    }
+
+    public bool AccessLocal { get => Access == AccessMode.LocalNetwork; set { if (value) Access = AccessMode.LocalNetwork; } }
+    public bool AccessCustomMode { get => Access == AccessMode.Custom; set { if (value) Access = AccessMode.Custom; } }
+    public bool AccessAnyone { get => Access == AccessMode.Anyone; set { if (value) Access = AccessMode.Anyone; } }
+    public string AccessCustom { get => _accessCustom; set => Set(ref _accessCustom, value); }
+    public string AccessCurrent { get => _accessCurrent; private set => Set(ref _accessCurrent, value); }
+    public bool AccessMismatch { get => _accessMismatch; private set => Set(ref _accessMismatch, value); }
+    public bool AccessBusy { get => _accessBusy; private set => Set(ref _accessBusy, value); }
+
+    private void LoadAccess()
+    {
+        var saved = Settings.ShareAccess;
+        AccessCustom = Settings.ShareAccessCustom;
+        Access = saved == Firewall.Any ? AccessMode.Anyone
+            : saved.Equals(Firewall.LocalSubnet, StringComparison.OrdinalIgnoreCase) ? AccessMode.LocalNetwork
+            : AccessMode.Custom;
+        if (Access == AccessMode.Custom && AccessCustom.Length == 0) AccessCustom = saved.Replace(",", ", ");
+        RefreshAccess();
+    }
+
+    private void RefreshAccess()
+    {
+        if (!ServerInstalled) return;
+        var current = Firewall.GetRemoteAddresses();
+        AccessCurrent = "Currently allowed: " + Firewall.Describe(current);
+        AccessMismatch = current != null && !Firewall.Matches(current, Settings.ShareAccess);
+    }
+
+    public async Task<string?> ApplyAccessAsync()
+    {
+        string target;
+        switch (Access)
+        {
+            case AccessMode.LocalNetwork: target = Firewall.LocalSubnet; break;
+            case AccessMode.Anyone: target = Firewall.Any; break;
+            default:
+                if (!Firewall.TryNormalize(AccessCustom, out target, out var err)) return err;
+                break;
+        }
+        AccessBusy = true;
+        try
+        {
+            var error = await Firewall.SetRemoteAddressesAsync(target);
+            if (error != null) return error;
+            Settings.ShareAccess = target;
+            if (Access == AccessMode.Custom) Settings.ShareAccessCustom = AccessCustom;
+            Settings.Save();
+            RefreshAccess();
+            StatusText = "Server access updated.";
+            return null;
+        }
+        finally
+        {
+            AccessBusy = false;
+        }
+    }
     public string ShareStatus { get => _shareStatus; private set => Set(ref _shareStatus, value); }
 
     public bool HasServers => Servers.Count > 0;
@@ -92,6 +167,7 @@ public sealed class AppController : Observable
     public void Start()
     {
         foreach (var entry in Settings.ManualServers) AddManualServerVm(entry);
+        LoadAccess();
         _discovery.Found += s => _ui.BeginInvoke(() => OnDiscovered(s));
         _discovery.Lost += id => _ui.BeginInvoke(() => OnLost(id));
         try
@@ -126,6 +202,7 @@ public sealed class AppController : Observable
             DriverInstalled = Prerequisites.Client.IsInstalled;
             ServerInstalled = Prerequisites.Server.IsInstalled;
             SetupText = error ?? "All set.";
+            RefreshAccess();
             if (error == null) Notify?.Invoke("USB/IP is ready", "Drivers installed. You can attach and share USB devices.");
         }
         finally

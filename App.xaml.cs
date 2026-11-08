@@ -28,6 +28,12 @@ public partial class App : Application
             return;
         }
 
+        if (args.Length == 2 && args[0] == "--set-firewall")
+        {
+            Shutdown(Firewall.ApplyElevated(args[1]));
+            return;
+        }
+
         if (args.Contains("--uninstall", StringComparer.OrdinalIgnoreCase))
         {
             StopRunningInstance();

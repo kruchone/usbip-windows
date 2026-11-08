@@ -24,6 +24,9 @@ Running a newer `UsbIp.exe` replaces the installed one. Uninstall from Installed
 - Lists this PC's USB devices, with Share / Stop sharing (bind/unbind; one UAC prompt each) and who's using each one.
 - While anything is shared, it advertises the PC as `_usbip._tcp` over mDNS, so other USB/IP apps find it automatically.
 - Devices this PC has imported from elsewhere are never offered for sharing.
+- **Who can connect** sets the remote addresses usbipd-win's inbound firewall rule (`usbipd`, TCP 3240) accepts: this
+  PC's subnet only (the default), specific IPs, networks or ranges (e.g. `LocalSubnet, 10.0.20.0/24, 100.64.0.0/10`), or anyone.
+  Applying it takes one UAC prompt. The app warns if the rule later stops matching, e.g. after a usbipd-win upgrade.
 
 **Use remote devices**
 
@@ -42,7 +45,7 @@ Requires the .NET 10 SDK. It runs on Windows 10 (2004) or later.
 dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=embedded -o dist
 ```
 
-Use `-r win-arm64` for ARM. Options: `--tray` starts minimized, `--portable` skips self-install, and `--uninstall` removes the app.
+Use `-r win-arm64` for ARM. Options: `--tray` starts minimized, `--set-firewall <list>` applies an access list (elevated), `--portable` skips self-install, and `--uninstall` removes the app.
 
 ## Notes
 
