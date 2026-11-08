@@ -1,5 +1,7 @@
 # USB/IP for Windows
 
+**Download:** https://kruchone.github.io/usbip/
+
 A tray app with two modes. **Use remote devices:** attach USB devices shared over the network as if they were
 plugged into this PC. **Share this PC:** let other computers attach this PC's USB devices.
 It pairs with [usbip-android](https://github.com/kruchone/usbip-android), and also works with any standard USB/IP server, such as Linux `usbipd`.
