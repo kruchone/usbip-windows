@@ -105,7 +105,7 @@ public static class UsbIpCli
 
     // Port 01: device in use at High Speed(480Mbps)
     //          Arduino SA : Uno R3 (CDC ACM) (2341:0043)
-    //            -> usbip://10.0.20.221:3240/1-1
+    //            -> usbip://192.168.1.50:3240/1-1
     private static readonly Regex PortRx = new(
         @"^Port\s+(\d+):\s*device in use at\s*(.*)\n\s*(.*)\n\s*->\s*usbip://(.+):(\d+)/(\S+)",
         RegexOptions.Multiline);
