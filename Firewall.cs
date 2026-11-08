@@ -146,7 +146,9 @@ public static class Firewall
     private static string ToCidr(string a)
     {
         var i = a.IndexOf('/');
-        if (i <= 0 || !IPAddress.TryParse(a[(i + 1)..], out var mask)) return a;
+        var suffix = i > 0 ? a[(i + 1)..] : "";
+        // Only dotted masks need converting; IPAddress.TryParse would also accept a prefix length like "16".
+        if (!suffix.Contains('.') || !IPAddress.TryParse(suffix, out var mask)) return a;
         var bits = mask.GetAddressBytes().Sum(b => Convert.ToString(b, 2).Count(c => c == '1'));
         return $"{a[..i]}/{bits}";
     }
