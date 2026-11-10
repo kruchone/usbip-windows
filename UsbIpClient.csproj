@@ -11,7 +11,7 @@
     <AssemblyName>UsbIp</AssemblyName>
     <RootNamespace>UsbIpClient</RootNamespace>
     <Product>USB/IP</Product>
-    <Version>0.1.0-beta.1</Version>
+    <Version>0.1.0-beta.2</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <!-- WPF Fluent theme (ThemeMode) is flagged experimental. -->
