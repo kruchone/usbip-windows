@@ -51,6 +51,15 @@ USB drivers mostly call themselves "USB Input Device", so names are built from b
 Each device also shows its vendor and what it contains (Keyboard, Mouse, Audio, Storage, Serial port, Camera, …).
 For local devices that comes from the Windows drivers bound to it; for remote devices, from their USB interface classes.
 
+## Logs
+
+The app writes a daily log to `%LOCALAPPDATA%\UsbIp\logs` and keeps it for 14 days. It covers attach
+and detach, servers going online and offline, sharing changes, driver installs, firewall changes,
+`usbip.exe` failures and crashes. Click **Logs** at the bottom of the window, or **Open logs folder**
+in the tray menu, to open that folder. Opening it also writes `usbipd-events.txt` there, which holds
+the sharing service's (usbipd-win) recent events from Event Viewer (Windows Logs, then Application,
+source `usbipd`).
+
 ## Build
 
 Requires the .NET 10 SDK. It runs on Windows 10 (2004) or later.

@@ -276,6 +276,8 @@
         <DockPanel Grid.Row="4">
             <TextBlock DockPanel.Dock="Right" Text="{Binding DriverVersion, Mode=OneWay}" Style="{StaticResource Secondary}"
                        VerticalAlignment="Center" FontSize="12" Margin="12,0,0,0" />
+            <Button DockPanel.Dock="Right" Content="Logs" Click="OpenLogs_Click" Padding="10,2" Margin="12,0,0,0"
+                    ToolTip="Open the folder with this app's logs and the sharing service's events" />
             <CheckBox x:Name="StartupBox" DockPanel.Dock="Left" Content="Start with Windows" VerticalAlignment="Center"
                       Checked="Startup_Changed" Unchecked="Startup_Changed" Margin="0,0,16,0" />
             <TextBlock Text="{Binding StatusText}" Style="{StaticResource Secondary}" FontSize="12"

@@ -38,7 +38,13 @@ public sealed class AppController : Observable
     /** Raised for tray notifications: (title, message). */
     public event Action<string, string>? Notify;
 
-    public string StatusText { get => _statusText; private set => Set(ref _statusText, value); }
+    private void Notified(string title, string message)
+    {
+        AppLog.Info($"{title}: {message}");
+        Notify?.Invoke(title, message);
+    }
+
+    public string StatusText { get => _statusText; private set { if (Set(ref _statusText, value) && value.Length > 0) AppLog.Info(value); } }
 
     /** usbip-win2 (attach remote devices) is installed. */
     public bool DriverInstalled
@@ -57,7 +63,7 @@ public sealed class AppController : Observable
     public bool SetupNeeded => !DriverInstalled || !ServerInstalled;
     public bool SetupBusy { get => _setupBusy; private set { if (Set(ref _setupBusy, value)) OnChanged(nameof(CanInstall)); } }
     public bool CanInstall => SetupNeeded && !SetupBusy;
-    public string SetupText { get => _setupText; private set => Set(ref _setupText, value); }
+    public string SetupText { get => _setupText; private set { if (Set(ref _setupText, value) && value.Length > 0) AppLog.Info($"setup: {value}"); } }
 
     public string ClientComponentText => (DriverInstalled ? "✓ " : "• ") + $"{Prerequisites.Client.Name}: {Prerequisites.Client.Purpose}" + (DriverInstalled ? " (installed)" : "");
     public string ServerComponentText => (ServerInstalled ? "✓ " : "• ") + $"{Prerequisites.Server.Name}: {Prerequisites.Server.Purpose}" + (ServerInstalled ? " (installed)" : "");
@@ -147,7 +153,7 @@ public sealed class AppController : Observable
             AccessBusy = false;
         }
     }
-    public string ShareStatus { get => _shareStatus; private set => Set(ref _shareStatus, value); }
+    public string ShareStatus { get => _shareStatus; private set { if (Set(ref _shareStatus, value) && value.Length > 0) AppLog.Info($"sharing: {value}"); } }
 
     public bool HasServers => Servers.Count > 0;
 
@@ -203,7 +209,7 @@ public sealed class AppController : Observable
             ServerInstalled = Prerequisites.Server.IsInstalled;
             SetupText = error ?? "All set.";
             RefreshAccess();
-            if (error == null) Notify?.Invoke("USB/IP is ready", "Drivers installed. You can attach and share USB devices.");
+            if (error == null) Notified("USB/IP is ready", "Drivers installed. You can attach and share USB devices.");
         }
         finally
         {
@@ -248,6 +254,8 @@ public sealed class AppController : Observable
                 if (vm.Busy) continue;
                 vm.Shared = d.Shared;
                 vm.Attached = d.ClientAddress != null;
+                if (vm.Attached != (d.ClientAddress != null) || vm.Shared != d.Shared)
+                    AppLog.Info($"local {d.BusId} {vm.Name}: {(d.ClientAddress != null ? $"attached by {d.ClientAddress}" : d.Shared ? "shared" : "not shared")}");
                 vm.StatusText = d.ClientAddress != null ? $"In use by {d.ClientAddress}" : d.Shared ? "Shared" : "Not shared";
             }
 
@@ -316,6 +324,7 @@ public sealed class AppController : Observable
             }
             return;
         }
+        AppLog.Info($"discovered {d.Name} at {string.Join(", ", d.Addresses)} port {d.Port}");
         Servers.Add(new ServerVm
         {
             Key = d.Name,
@@ -439,6 +448,7 @@ public sealed class AppController : Observable
         }
         catch (Exception e)
         {
+            if (s.Online) AppLog.Warn($"server {s.Name} ({s.Endpoint}) went offline: {e.GetType().Name}: {e.Message}");
             s.Online = false;
             s.Status = "Offline";
             foreach (var d in s.Devices)
@@ -452,6 +462,7 @@ public sealed class AppController : Observable
             return;
         }
 
+        if (!s.Online) AppLog.Info($"server {s.Name} ({s.Endpoint}) online, {list.Count} shared: {string.Join(", ", list.Select(r => r.BusId))}");
         s.Online = true;
         s.LastSeen = DateTime.Now;
         if (info?.Name is { Length: > 0 } serverName && s.IsManual) s.Name = serverName;
@@ -460,7 +471,7 @@ public sealed class AppController : Observable
         var localAddrs = LocalAddresses();
         foreach (var gone in s.Devices.Where(d => list.All(r => r.BusId != d.BusId)).ToList())
         {
-            if (gone.WasAttached) Notify?.Invoke("Device removed", $"{gone.Name} is no longer shared by {s.Name}.");
+            if (gone.WasAttached) Notified("Device removed", $"{gone.Name} is no longer shared by {s.Name}.");
             s.Devices.Remove(gone);
         }
 
@@ -507,7 +518,7 @@ public sealed class AppController : Observable
         if (d.WasAttached && state != DeviceState.Attached && state != DeviceState.Working)
         {
             d.WasAttached = false;
-            Notify?.Invoke("Device disconnected", d.AutoAttach
+            Notified("Device disconnected", d.AutoAttach
                 ? $"{d.Name} was disconnected. It will be re-attached when it's available."
                 : $"{d.Name} was disconnected.");
         }
@@ -557,7 +568,7 @@ public sealed class AppController : Observable
             d.AutoFailures = 0;
             Apply(d, DeviceState.Attached, port > 0 ? $"Attached (port {port})" : "Attached", port);
             StatusText = $"Attached {d.Name} from {s.Name}.";
-            if (automatic) Notify?.Invoke("Device attached", $"{d.Name} from {s.Name}");
+            if (automatic) Notified("Device attached", $"{d.Name} from {s.Name}");
         }
         else
         {

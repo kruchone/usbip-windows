@@ -93,6 +93,8 @@ public partial class MainWindow : Window
         else MessageBox.Show(this, error, "Add server", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    private void OpenLogs_Click(object sender, RoutedEventArgs e) => AppLog.OpenFolder();
+
     private void Startup_Changed(object sender, RoutedEventArgs e)
     {
         if (_loadingStartup) return;

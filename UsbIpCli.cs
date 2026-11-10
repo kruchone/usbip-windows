@@ -71,9 +71,14 @@ public static class UsbIpCli
         catch (OperationCanceledException)
         {
             try { p.Kill(entireProcessTree: true); } catch { /* already gone */ }
+            AppLog.Warn($"usbip {string.Join(' ', args)}: timed out");
             return new CliResult(-1, "", "usbip.exe timed out");
         }
-        return new CliResult(p.ExitCode, await stdout, await stderr);
+        var result = new CliResult(p.ExitCode, await stdout, await stderr);
+        // `port` runs every few seconds; only log it when it fails.
+        if (p.ExitCode != 0 || args.FirstOrDefault() != "port")
+            AppLog.Info($"usbip {string.Join(' ', args)} -> exit {p.ExitCode}: {(result.StdErr + " " + result.StdOut).Trim()}");
+        return result;
     }
 
     /** Attaches a remote device; returns the virtual hub port on success. */

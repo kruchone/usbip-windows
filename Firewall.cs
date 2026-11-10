@@ -72,6 +72,7 @@ public static class Firewall
         {
             using var p = Process.Start(psi)!;
             await p.WaitForExitAsync();
+            AppLog.Info($"firewall: set usbipd rule remote addresses to '{addresses}' -> exit {p.ExitCode}");
             return p.ExitCode switch
             {
                 0 => null,

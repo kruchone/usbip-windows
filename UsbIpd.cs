@@ -34,7 +34,12 @@ public static class UsbIpd
         using var p = Process.Start(psi)!;
         var json = await p.StandardOutput.ReadToEndAsync();
         await p.WaitForExitAsync();
-        if (p.ExitCode != 0) throw new InvalidOperationException((await p.StandardError.ReadToEndAsync()).Trim());
+        if (p.ExitCode != 0)
+        {
+            var err = (await p.StandardError.ReadToEndAsync()).Trim();
+            AppLog.Warn($"usbipd state -> exit {p.ExitCode}: {err}");
+            throw new InvalidOperationException(err);
+        }
 
         var list = new List<LocalUsbDevice>();
         using var doc = JsonDocument.Parse(json);
@@ -74,10 +79,12 @@ public static class UsbIpd
         {
             using var p = Process.Start(psi)!;
             await p.WaitForExitAsync();
+            AppLog.Info($"usbipd {(share ? "bind" : "unbind")} --busid {busId} -> exit {p.ExitCode}");
             return p.ExitCode == 0 ? null : $"usbipd {(share ? "bind" : "unbind")} failed (code {p.ExitCode}).";
         }
         catch (Win32Exception e) when (e.NativeErrorCode == 1223)
         {
+            AppLog.Info($"usbipd {(share ? "bind" : "unbind")} --busid {busId}: UAC prompt cancelled");
             return "Cancelled at the Windows permission prompt.";
         }
     }

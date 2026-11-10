@@ -124,7 +124,11 @@ public static class Prerequisites
         var result = 0;
         foreach (var file in files)
         {
-            if (!File.Exists(file) || !pinned.Contains(Sha256(file))) return 2;
+            if (!File.Exists(file) || !pinned.Contains(Sha256(file)))
+            {
+                AppLog.Error($"installer {file} missing or hash mismatch; not running it");
+                return 2;
+            }
             var psi = file.EndsWith(".msi", StringComparison.OrdinalIgnoreCase)
                 ? new ProcessStartInfo("msiexec.exe") { ArgumentList = { "/i", file, "/qn", "/norestart" } }
                 : new ProcessStartInfo(file) { ArgumentList = { "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-" } };
@@ -132,6 +136,7 @@ public static class Prerequisites
             psi.CreateNoWindow = true;
             using var p = Process.Start(psi)!;
             p.WaitForExit();
+            AppLog.Info($"installer {Path.GetFileName(file)} -> exit {p.ExitCode}");
             // 3010 = success, reboot required (MSI).
             if (p.ExitCode != 0 && p.ExitCode != 3010) result = p.ExitCode;
         }

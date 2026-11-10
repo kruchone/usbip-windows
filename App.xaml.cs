@@ -20,16 +20,21 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         var args = e.Args;
+        DispatcherUnhandledException += (_, ev) => AppLog.Error("unhandled UI exception", ev.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, ev) => AppLog.Error("unhandled exception", ev.ExceptionObject as Exception);
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, ev) => AppLog.Warn("unobserved task exception", ev.Exception);
 
         // Elevated helper: run the driver installers downloaded by the normal (unelevated) instance.
         if (args.Length > 0 && args[0] == "--run-installers")
         {
+            AppLog.Startup("elevated installer helper");
             Shutdown(Prerequisites.RunInstallers(args.Skip(1)));
             return;
         }
 
         if (args.Length == 2 && args[0] == "--set-firewall")
         {
+            AppLog.Startup("elevated firewall helper");
             Shutdown(Firewall.ApplyElevated(args[1]));
             return;
         }
@@ -77,6 +82,7 @@ public partial class App : Application
         }
 
         base.OnStartup(e);
+        AppLog.Startup(args.Length == 0 ? "normal" : string.Join(' ', args));
         _controller = new AppController(Dispatcher);
         var window = new MainWindow(_controller);
         MainWindow = window;
@@ -141,6 +147,7 @@ public partial class App : Application
 
     public void ExitApp()
     {
+        AppLog.Info("exiting");
         IsExiting = true;
         _tray?.Dispose();
         _controller?.Stop();
